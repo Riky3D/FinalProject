@@ -3,17 +3,15 @@ import requests
 import datetime
 import json
 from dotenv import load_dotenv
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError 
 
-load_dotenv()
-API_KEY = os.getenv('API_KEY') 
-
+api_key = "RGAPI-a2f9e9e0-dd50-477f-84c7-848e4a31ec47"
 codepipeline_client = boto3.client('codepipeline')
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('RawData')
 
 def get_champion_rotation(api_key):
-    url = "https://euw1.api.riotgames.com/lol/platform/v3/champion-rotations"
+    url = f"https://euw1.api.riotgames.com/lol/platform/v3/champion-rotations"
     headers = {"X-Riot-Token": api_key}
     
     response = requests.get(url, headers=headers)
@@ -29,12 +27,10 @@ def get_champion_rotation(api_key):
 def store_rotation_in_dynamodb(data, timestamp):
     try:
         # Convert readable timestamp
-        readable_time = datetime.datetime.fromtimestamp(timestamp).isoformat()
         
         # Prepare item for DynamoDB
         item = {
-            "timestamp": timestamp,
-            "readableTime": readable_time,
+            "timestamp": str(timestamp),
             "freeChampionIds": data.get("freeChampionIds", []),
             "freeChampionIdsForNewPlayers": data.get("freeChampionIdsForNewPlayers", []),
             "maxNewPlayerLevel": data.get("maxNewPlayerLevel", 0)
@@ -56,12 +52,12 @@ def lambda_handler(event, context):
     timestamp_now = int(datetime.datetime.now().timestamp())
     
     # Fetch champion rotation data from Riot API
-    rotation_data = get_champion_rotation(API_KEY)
+    rotation_data = get_champion_rotation(api_key)
     
     if rotation_data:
         try:
             # Store the fetched data in DynamoDB
-            store_data_in_dynamodb(rotation_data, timestamp_now)
+            store_rotation_in_dynamodb(rotation_data, timestamp_now)
             
             # Report success to CodePipeline
             if job_id:
